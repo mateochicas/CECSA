@@ -251,8 +251,8 @@
                             <i data-lucide="globe-2" class="w-7 h-7"></i>
                         </div>
                         <span id="badge-status-6"
-                            class="text-xs px-3 py-1 rounded-full font-semibold bg-[#e5e5ea] dark:bg-[#2c2c2e] text-[#86868b] transition-all">
-                            Pendiente
+                            class="text-xs px-3 py-1 rounded-full font-semibold bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60 transition-all">
+                            Cerrado
                         </span>
                     </div>
 
@@ -275,8 +275,8 @@
                             <span>Apertura: <strong>28 Oct 2026, 02:00 PM</strong></span>
                         </div>
                         <div id="countdown-6"
-                            class="font-mono text-xs font-bold px-2.5 py-1 rounded-full bg-[#f5f5f7] dark:bg-[#161617] border border-[#d2d2d7] dark:border-[#424245] text-[#1d1d1f] dark:text-[#f5f5f7] text-center">
-                            Calculando...
+                            class="font-mono text-xs font-bold px-2.5 py-1 rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60 text-center">
+                            Evaluación finalizada
                         </div>
                     </div>
                 </div>
@@ -284,7 +284,7 @@
                 <!-- Action Button (Cifrado: URL oculta) -->
                 <a id="btn-6" href="javascript:void(0)"
                     class="btn-disabled w-full">
-                    <span id="text-btn-6">No disponible aún</span>
+                    <span id="text-btn-6">Evaluación finalizada</span>
                     <i id="icon-btn-6" data-lucide="lock" class="w-4 h-4"></i>
                 </a>
             </article>
@@ -348,6 +348,14 @@
         const TARGET_6 = Date.parse('2026-10-28T14:00:00-06:00');
         // 7th Grade (Lenguaje): 29 Oct 2026, 07:30:00 AM UTC-6
         const TARGET_7 = Date.parse('2026-10-29T07:30:00-06:00');
+
+        // Estado de bloqueo manual de evaluaciones (true = bloqueado / cerrado)
+        const IS_BLOCKED_6 = (window.CECSA_CONFIG && typeof window.CECSA_CONFIG.blocked6 !== 'undefined')
+            ? window.CECSA_CONFIG.blocked6
+            : true;
+        const IS_BLOCKED_7 = (window.CECSA_CONFIG && typeof window.CECSA_CONFIG.blocked7 !== 'undefined')
+            ? window.CECSA_CONFIG.blocked7
+            : false;
 
         // State for secure time keeping
         let serverEpochBase = null;
@@ -557,9 +565,10 @@
                 iconBtnId: 'icon-btn-6',
                 countdownId: 'countdown-6',
                 badgeId: 'badge-status-6',
-                encPayload: ENC_LINK_6,
+                encPayload: IS_BLOCKED_6 ? null : ENC_LINK_6,
                 seed: SEED_6,
-                salt: CIPHER_SALT
+                salt: CIPHER_SALT,
+                isBlocked: IS_BLOCKED_6
             });
 
             // 2. Update 7th Grade
@@ -571,9 +580,10 @@
                 iconBtnId: 'icon-btn-7',
                 countdownId: 'countdown-7',
                 badgeId: 'badge-status-7',
-                encPayload: ENC_LINK_7,
+                encPayload: IS_BLOCKED_7 ? null : ENC_LINK_7,
                 seed: SEED_7,
-                salt: CIPHER_SALT
+                salt: CIPHER_SALT,
+                isBlocked: IS_BLOCKED_7
             });
         }
 
@@ -615,7 +625,6 @@
         }
 
         function updateGradeCard(config) {
-            const diff = config.target - config.now;
             const btn = document.getElementById(config.btnId);
             const textBtn = document.getElementById(config.textBtnId);
             const iconBtn = document.getElementById(config.iconBtnId);
@@ -623,6 +632,33 @@
             const badge = document.getElementById(config.badgeId);
 
             if (!btn || !textBtn || !countdown || !badge) return;
+
+            if (config.isBlocked) {
+                // EXAM IS BLOCKED / CLOSED
+                countdown.innerText = "Evaluación finalizada";
+                countdown.className = "font-mono font-bold text-xs px-2.5 py-1 rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60 text-center";
+
+                badge.innerText = "Cerrado";
+                badge.className = "text-xs px-3 py-1 rounded-full font-semibold bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60";
+
+                btn.className = "btn-disabled w-full";
+                btn.style.pointerEvents = "none";
+                btn.style.cursor = "not-allowed";
+                textBtn.innerText = "Evaluación finalizada";
+
+                delete btn.dataset.unlocked;
+                btn.href = "javascript:void(0)";
+                btn.removeAttribute("target");
+                btn.removeAttribute("rel");
+
+                if (iconBtn && iconBtn.getAttribute('data-lucide') !== 'lock') {
+                    iconBtn.setAttribute('data-lucide', 'lock');
+                    safeCreateIcons();
+                }
+                return;
+            }
+
+            const diff = config.target - config.now;
 
             if (diff <= 0) {
                 // EXAM IS OPEN!
