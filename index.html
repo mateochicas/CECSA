@@ -2,23 +2,13 @@
 <html lang="es" class="scroll-smooth">
 
 <head>
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-S8Q819MR8K"></script>
-    <script>
-        window.dataLayer = window.dataLayer || [];
-        function gtag() { dataLayer.push(arguments); }
-        gtag('js', new Date());
-        gtag('config', 'G-S8Q819MR8K');
-    </script>
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CECSA | Examenes</title>
     <meta name="description"
         content="Portal oficial de evaluaciones académicas CECSA. Formularios oficiales de evaluación para sexto y séptimo grado con apertura sincronizada.">
     <link rel="icon" type="image/png" id="favicon" href="/src/favicon/nav-icon-black.png">
-
-    <!-- Tailwind CSS CDN & Configuration (same as index.html styling) -->
+    <meta name="robots" content="noindex, follow">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -291,8 +281,8 @@
                     </div>
                 </div>
 
-                <!-- Action Button -->
-                <a id="btn-6" href="https://forms.gle/iobk1oCbbx3KTPP67" target="_blank" rel="noopener noreferrer"
+                <!-- Action Button (Cifrado: URL oculta) -->
+                <a id="btn-6" href="javascript:void(0)"
                     class="btn-disabled w-full">
                     <span id="text-btn-6">No disponible aún</span>
                     <i id="icon-btn-6" data-lucide="lock" class="w-4 h-4"></i>
@@ -339,8 +329,8 @@
                     </div>
                 </div>
 
-                <!-- Action Button -->
-                <a id="btn-7" href="https://forms.gle/V7FC2cwDRCYG8kY89" target="_blank" rel="noopener noreferrer"
+                <!-- Action Button (Cifrado: URL oculta) -->
+                <a id="btn-7" href="javascript:void(0)"
                     class="btn-disabled w-full">
                     <span id="text-btn-7">No disponible aún</span>
                     <i id="icon-btn-7" data-lucide="lock" class="w-4 h-4"></i>
@@ -566,7 +556,10 @@
                 textBtnId: 'text-btn-6',
                 iconBtnId: 'icon-btn-6',
                 countdownId: 'countdown-6',
-                badgeId: 'badge-status-6'
+                badgeId: 'badge-status-6',
+                encPayload: ENC_LINK_6,
+                seed: SEED_6,
+                salt: CIPHER_SALT
             });
 
             // 2. Update 7th Grade
@@ -577,8 +570,48 @@
                 textBtnId: 'text-btn-7',
                 iconBtnId: 'icon-btn-7',
                 countdownId: 'countdown-7',
-                badgeId: 'badge-status-7'
+                badgeId: 'badge-status-7',
+                encPayload: ENC_LINK_7,
+                seed: SEED_7,
+                salt: CIPHER_SALT
             });
+        }
+
+        // Cifrado y protección de enlaces de evaluación
+        // Compatible con configuración remota opcional (window.CECSA_CONFIG) o valores locales seguros
+        const CIPHER_SALT = (window.CECSA_CONFIG && window.CECSA_CONFIG.salt) || 0xA5C9F1;
+        const ENC_LINK_6 = (window.CECSA_CONFIG && window.CECSA_CONFIG.link6) || '16e34f864af8ace8cdf7974a0700fe8e9567e8f5f8b67f15ea7b46319db7bfa35a83d1';
+        const ENC_LINK_7 = (window.CECSA_CONFIG && window.CECSA_CONFIG.link7) || '848f2e881c301c30565cf36030f41694503b480dd34858fd0ed1c6053de0fd3092402f';
+
+        function deriveKey(p1, p2, seedNumber) {
+            const combined = p1 + '-' + seedNumber + '-' + p2;
+            let hash = 0x811c9dc5;
+            for (let i = 0; i < combined.length; i++) {
+                hash ^= combined.charCodeAt(i);
+                hash = Math.imul(hash, 0x01000193);
+            }
+            return Math.abs(hash);
+        }
+
+        const SEED_6 = deriveKey('CECSA_EVAL', 'G6_SOC', 20261028);
+        const SEED_7 = deriveKey('CECSA_EVAL', 'G7_LEN', 20261029);
+
+        function decryptUrl(encodedHex, seed, salt) {
+            let s = (seed ^ salt) >>> 0;
+            if (s === 0) s = 0x6D2B79F5;
+            function nextByte() {
+                s ^= s << 13;
+                s ^= s >>> 17;
+                s ^= s << 5;
+                return (s & 0xFF);
+            }
+            let result = '';
+            for (let i = 0; i < encodedHex.length; i += 2) {
+                const byteVal = parseInt(encodedHex.substr(i, 2), 16);
+                const mask = nextByte();
+                result += String.fromCharCode(byteVal ^ mask);
+            }
+            return result;
         }
 
         function updateGradeCard(config) {
@@ -604,6 +637,14 @@
                 btn.style.cursor = "pointer";
                 textBtn.innerText = "Acceder a la Evaluación";
 
+                // Desbloquear y asignar enlace únicamente cuando la hora oficial ha llegado
+                if (!btn.dataset.unlocked) {
+                    btn.dataset.unlocked = "true";
+                    btn.href = decryptUrl(config.encPayload, config.seed, config.salt);
+                    btn.target = "_blank";
+                    btn.rel = "noopener noreferrer";
+                }
+
                 if (iconBtn && iconBtn.getAttribute('data-lucide') !== 'arrow-up-right') {
                     iconBtn.setAttribute('data-lucide', 'arrow-up-right');
                     safeCreateIcons();
@@ -620,6 +661,12 @@
                 btn.style.pointerEvents = "none";
                 btn.style.cursor = "not-allowed";
                 textBtn.innerText = "No disponible aún";
+
+                // Asegurar que el enlace nunca esté en el DOM antes de tiempo
+                delete btn.dataset.unlocked;
+                btn.href = "javascript:void(0)";
+                btn.removeAttribute("target");
+                btn.removeAttribute("rel");
 
                 if (iconBtn && iconBtn.getAttribute('data-lucide') !== 'lock') {
                     iconBtn.setAttribute('data-lucide', 'lock');
@@ -667,6 +714,20 @@
 
         // Initial setup
         window.addEventListener('DOMContentLoaded', () => {
+            // Seguridad: prevenir cualquier acción en enlaces si no están oficialmente desbloqueados
+            ['btn-6', 'btn-7'].forEach(id => {
+                const btn = document.getElementById(id);
+                if (btn) {
+                    btn.addEventListener('click', (e) => {
+                        if (!btn.dataset.unlocked) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            return false;
+                        }
+                    });
+                }
+            });
+
             safeCreateIcons();
             updateThemeIcon();
             syncServerTime().then(() => {
